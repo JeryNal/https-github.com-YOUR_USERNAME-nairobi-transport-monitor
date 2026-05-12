@@ -51,16 +51,50 @@ body {
 .hero-images {
   display: grid;
   gap: 14px;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .hero-images img {
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
-  height: min(40vh, 310px);
+  height: min(30vh, 230px);
   object-fit: cover;
   width: 100%;
+}
+
+.hero-images img:first-child {
+  grid-column: span 2;
+}
+
+.contact-strip {
+  background: #fff;
+  border: 1px solid #dde2ea;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  justify-content: space-between;
+  margin: 22px auto 0;
+  max-width: 1240px;
+  padding: 14px 18px;
+}
+
+.contact-strip div {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.contact-strip strong {
+  color: #172033;
+}
+
+.contact-strip span,
+.contact-strip a {
+  color: #475467;
+  text-decoration: none;
 }
 
 .login-grid {
@@ -208,5 +242,11 @@ body {
 
   .hero-images img {
     height: 220px;
+  }
+
+  .hero-images,
+  .hero-images img:first-child {
+    grid-column: auto;
+    grid-template-columns: 1fr;
   }
 }
