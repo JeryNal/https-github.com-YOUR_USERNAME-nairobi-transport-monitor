@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: nairobi-transport-monitor
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --worker-class gthread --threads 100 --workers 1 --bind 0.0.0.0:$PORT wsgi:app
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: SIMULATION_ENABLED
+        value: "true"
+      - key: SOCKETIO_CORS_ORIGINS
+        value: "*"
