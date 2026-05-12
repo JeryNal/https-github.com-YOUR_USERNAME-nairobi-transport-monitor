@@ -1,128 +1,191 @@
 body {
-  background: #f6f7f9;
-  color: #172033;
+  background: #f5f7fa;
+  color: #1f2937;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.site-header {
+  background: #fff;
+  border-bottom: 1px solid #d7dde5;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.utility-bar {
+  align-items: center;
+  background: #eef2f6;
+  color: #475467;
+  display: flex;
+  font-size: 0.8rem;
+  justify-content: space-between;
+  padding: 6px 28px;
+}
+
+.utility-bar a,
+.main-nav a,
+.reference-links a {
+  color: #174ea6;
+  text-decoration: none;
+}
+
+.main-nav {
+  align-items: center;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  padding: 14px 28px;
 }
 
 .brand-button {
   background: transparent;
   border: 0;
-  color: #172033;
-  font-size: 1.05rem;
-  font-weight: 700;
+  color: #111827;
+  font-size: 1.15rem;
+  font-weight: 800;
   padding: 0;
 }
 
+.nav-links {
+  display: flex;
+  flex: 1;
+  gap: 22px;
+}
+
 .home-page {
-  min-height: calc(100vh - 57px);
   padding: 28px;
 }
 
-.hero-grid {
-  align-items: stretch;
-  display: grid;
-  gap: 28px;
-  grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);
-  max-width: 1240px;
+.page-shell {
+  background: #fff;
+  border: 1px solid #d7dde5;
   margin: 0 auto;
+  max-width: 1180px;
+  padding: 32px;
 }
 
-.hero-copy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+.breadcrumb {
+  color: #667085;
+  font-size: 0.86rem;
+  margin-bottom: 12px;
 }
 
-.section-kicker {
-  color: #0f766e;
-  font-size: 0.78rem;
+.updated-date {
+  border-bottom: 1px solid #d7dde5;
+  color: #667085;
+  font-size: 0.86rem;
+  margin-bottom: 22px;
+  padding-bottom: 14px;
+}
+
+.page-shell h1 {
+  font-size: clamp(2.2rem, 5vw, 4.25rem);
   font-weight: 800;
   letter-spacing: 0;
-  margin-bottom: 8px;
-  text-transform: uppercase;
+  line-height: 1.05;
+  margin-bottom: 16px;
 }
 
-.hero-copy h1 {
-  font-size: clamp(2rem, 5vw, 4.5rem);
-  font-weight: 800;
-  line-height: 1.02;
-  max-width: 760px;
+.lead-copy {
+  color: #475467;
+  font-size: 1.08rem;
+  line-height: 1.7;
+  max-width: 920px;
 }
 
-.hero-images {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.feature-image {
+  margin: 28px 0 34px;
 }
 
-.hero-images img {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
-  height: min(30vh, 230px);
+.feature-image img {
+  aspect-ratio: 16 / 7;
+  border-radius: 4px;
+  display: block;
   object-fit: cover;
   width: 100%;
 }
 
-.hero-images img:first-child {
-  grid-column: span 2;
+.guide-section {
+  border-top: 1px solid #d7dde5;
+  padding: 30px 0;
 }
 
-.contact-strip {
-  background: #fff;
-  border: 1px solid #dde2ea;
-  border-radius: 8px;
-  display: flex;
-  flex-wrap: wrap;
+.guide-section h2 {
+  font-size: 1.7rem;
+  font-weight: 800;
+  margin-bottom: 18px;
+}
+
+.tips-grid,
+.traffic-grid {
+  display: grid;
   gap: 18px;
-  justify-content: space-between;
-  margin: 22px auto 0;
-  max-width: 1240px;
-  padding: 14px 18px;
 }
 
-.contact-strip div {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.tips-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.contact-strip strong {
-  color: #172033;
+.tip-card {
+  border: 1px solid #d7dde5;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-.contact-strip span,
-.contact-strip a {
+.tip-card img {
+  aspect-ratio: 4 / 3;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.tip-card h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 16px 16px 8px;
+}
+
+.tip-card p {
   color: #475467;
-  text-decoration: none;
+  line-height: 1.6;
+  margin: 0 16px 18px;
 }
 
 .login-grid {
   display: grid;
-  gap: 14px;
+  gap: 18px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 26px;
 }
 
 .login-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 18px;
 }
 
-#map {
-  min-height: calc(100vh - 106px);
-  border: 1px solid #dde2ea;
-  border-radius: 8px;
+.reference-links {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.metrics-grid,
-.traffic-grid {
-  display: grid;
-  gap: 12px;
+.reference-links a {
+  border: 1px solid #d7dde5;
+  border-radius: 4px;
+  display: block;
+  font-weight: 700;
+  padding: 14px 16px;
+}
+
+#map {
+  min-height: calc(100vh - 142px);
+  border: 1px solid #dde2ea;
+  border-radius: 4px;
 }
 
 .metrics-grid {
+  display: grid;
+  gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -130,7 +193,7 @@ body {
 .vehicle-list,
 .traffic-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 4px;
 }
 
 .metric {
@@ -177,11 +240,20 @@ body {
 }
 
 .passenger-page {
-  min-height: calc(100vh - 57px);
+  min-height: calc(100vh - 97px);
 }
 
 .passenger-header {
   margin-bottom: 18px;
+}
+
+.section-kicker {
+  color: #174ea6;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin-bottom: 8px;
+  text-transform: uppercase;
 }
 
 .traffic-grid {
@@ -229,24 +301,61 @@ body {
   color: #166534;
 }
 
+.site-footer {
+  background: #283445;
+  color: #fff;
+  padding: 30px 28px;
+}
+
+.footer-brand {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin-bottom: 18px;
+}
+
+.footer-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 1180px;
+}
+
+.footer-grid div {
+  display: grid;
+  gap: 6px;
+}
+
+.footer-grid a,
+.footer-grid span {
+  color: #dbe4ee;
+  text-decoration: none;
+}
+
 @media (max-width: 900px) {
+  .utility-bar,
+  .main-nav,
+  .nav-links {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .home-page {
-    padding: 18px;
+    padding: 14px;
   }
 
-  .hero-grid,
+  .page-shell {
+    padding: 20px;
+  }
+
+  .feature-image img {
+    aspect-ratio: 4 / 3;
+  }
+
+  .tips-grid,
   .login-grid,
-  .traffic-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-images img {
-    height: 220px;
-  }
-
-  .hero-images,
-  .hero-images img:first-child {
-    grid-column: auto;
+  .traffic-grid,
+  .reference-links,
+  .footer-grid {
     grid-template-columns: 1fr;
   }
 }
