@@ -111,31 +111,71 @@ def get_analytics():
 @api_bp.get("/traffic")
 @role_required("admin", "manager", "driver", "passenger")
 def get_traffic_updates():
+    route_id = request.args.get("route_id", type=int)
+    search = (request.args.get("q") or "").strip()
+    filters = []
+    params = []
+    if route_id:
+        filters.append("routes.id = ?")
+        params.append(route_id)
+    if search:
+        filters.append("(routes.name LIKE ? OR routes.origin LIKE ? OR routes.destination LIKE ?)")
+        search_term = f"%{search}%"
+        params.extend([search_term, search_term, search_term])
+
+    where_clause = f"WHERE {' AND '.join(filters)}" if filters else ""
     rows = get_db().execute(
-        """
+        f"""
+        WITH route_stats AS (
+            SELECT
+                routes.id AS route_id,
+                routes.name,
+                routes.origin,
+                routes.destination,
+                routes.color,
+                traffic_updates.message AS saved_message,
+                traffic_updates.updated_at,
+                ROUND(AVG(vehicles.speed_kph), 1) AS average_speed,
+                ROUND(AVG(vehicles.occupancy), 1) AS average_occupancy,
+                COUNT(DISTINCT vehicles.id) AS vehicles
+            FROM routes
+            LEFT JOIN vehicles ON vehicles.route_id = routes.id
+            LEFT JOIN traffic_updates ON traffic_updates.route_id = routes.id
+            {where_clause}
+            GROUP BY routes.id
+        )
         SELECT
-            routes.id AS route_id,
-            routes.name,
-            routes.origin,
-            routes.destination,
-            routes.color,
-            traffic_updates.severity,
-            traffic_updates.message,
-            traffic_updates.updated_at,
-            ROUND(AVG(vehicles.speed_kph), 1) AS average_speed,
-            ROUND(AVG(vehicles.occupancy), 1) AS average_occupancy,
-            COUNT(vehicles.id) AS vehicles
-        FROM routes
-        LEFT JOIN vehicles ON vehicles.route_id = routes.id
-        LEFT JOIN traffic_updates ON traffic_updates.route_id = routes.id
-        GROUP BY routes.id
+            route_id,
+            name,
+            origin,
+            destination,
+            color,
+            CASE
+                WHEN COALESCE(average_speed, 0) <= 25 OR COALESCE(average_occupancy, 0) >= 31 THEN 'Busy'
+                WHEN COALESCE(average_speed, 0) <= 42 OR COALESCE(average_occupancy, 0) >= 26 THEN 'Moderate'
+                ELSE 'Clear'
+            END AS severity,
+            CASE
+                WHEN COALESCE(average_speed, 0) <= 25 OR COALESCE(average_occupancy, 0) >= 31
+                    THEN 'Live data shows heavy route pressure. Expect delays before travelling.'
+                WHEN COALESCE(average_speed, 0) <= 42 OR COALESCE(average_occupancy, 0) >= 26
+                    THEN 'Live data shows moderate traffic. Plan with some extra travel time.'
+                ELSE 'Live data shows normal movement on this route.'
+            END AS message,
+            saved_message,
+            updated_at,
+            average_speed,
+            average_occupancy,
+            vehicles
+        FROM route_stats
         ORDER BY
-            CASE traffic_updates.severity
+            CASE severity
                 WHEN 'Busy' THEN 1
                 WHEN 'Moderate' THEN 2
                 ELSE 3
             END,
-            routes.name
-        """
+            name
+        """,
+        params,
     ).fetchall()
     return jsonify([row_to_dict(row) for row in rows])

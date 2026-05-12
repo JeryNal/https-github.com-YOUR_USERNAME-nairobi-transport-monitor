@@ -7,6 +7,9 @@ const state = {
   markers: new Map(),
   routeLayers: [],
   vehicles: [],
+  trafficUpdates: [],
+  selectedRouteId: "",
+  routeSearch: "",
 };
 
 const els = {
@@ -27,6 +30,9 @@ const els = {
   homeButton: document.querySelector("#homeButton"),
   vehicleList: document.querySelector("#vehicleList"),
   trafficList: document.querySelector("#trafficList"),
+  routeSelect: document.querySelector("#routeSelect"),
+  routeSearch: document.querySelector("#routeSearch"),
+  selectedRouteSummary: document.querySelector("#selectedRouteSummary"),
   totalVehicles: document.querySelector("#totalVehicles"),
   activeVehicles: document.querySelector("#activeVehicles"),
   avgSpeed: document.querySelector("#avgSpeed"),
@@ -167,7 +173,10 @@ function severityClass(severity) {
 }
 
 function renderTraffic(updates) {
-  els.trafficList.innerHTML = updates
+  state.trafficUpdates = updates;
+  const filteredUpdates = filterTrafficUpdates(updates);
+  renderSelectedRouteSummary(filteredUpdates);
+  els.trafficList.innerHTML = filteredUpdates
     .map((update) => {
       const level = severityClass(update.severity);
       return `
@@ -176,6 +185,7 @@ function renderTraffic(updates) {
           <h2 class="h5 mt-3">${update.name}</h2>
           <p class="text-secondary mb-2">${update.origin} to ${update.destination}</p>
           <p>${update.message}</p>
+          ${update.saved_message ? `<p class="small text-secondary">Route note: ${update.saved_message}</p>` : ""}
           <div class="small text-secondary">
             Avg speed: ${update.average_speed ?? 0} kph<br>
             Avg load: ${update.average_occupancy ?? 0} passengers<br>
@@ -184,7 +194,41 @@ function renderTraffic(updates) {
         </article>
       `;
     })
-    .join("");
+    .join("") || `<div class="traffic-card"><h2 class="h5">No matching route</h2><p class="text-secondary mb-0">Try searching for Ngong, Thika, Mombasa, CBD, Karen, Ruiru, or Athi River.</p></div>`;
+}
+
+function populateRouteSelect(updates) {
+  els.routeSelect.innerHTML = `<option value="">All routes</option>${updates
+    .map((update) => `<option value="${update.route_id}">${update.name}</option>`)
+    .join("")}`;
+  els.routeSelect.value = state.selectedRouteId;
+}
+
+function filterTrafficUpdates(updates) {
+  const query = state.routeSearch.trim().toLowerCase();
+  return updates.filter((update) => {
+    const matchesSelect = !state.selectedRouteId || String(update.route_id) === state.selectedRouteId;
+    const text = `${update.name} ${update.origin} ${update.destination}`.toLowerCase();
+    const matchesSearch = !query || text.includes(query);
+    return matchesSelect && matchesSearch;
+  });
+}
+
+function renderSelectedRouteSummary(updates) {
+  if (updates.length !== 1) {
+    els.selectedRouteSummary.classList.add("d-none");
+    els.selectedRouteSummary.innerHTML = "";
+    return;
+  }
+
+  const update = updates[0];
+  els.selectedRouteSummary.classList.remove("d-none");
+  els.selectedRouteSummary.innerHTML = `
+    <strong>${update.name}</strong> is currently <strong>${update.severity}</strong>.
+    Average speed is <strong>${update.average_speed ?? 0} kph</strong>,
+    average load is <strong>${update.average_occupancy ?? 0} passengers</strong>,
+    with <strong>${update.vehicles ?? 0}</strong> active vehicles.
+  `;
 }
 
 async function loadDashboard() {
@@ -202,6 +246,7 @@ async function loadDashboard() {
 async function loadPassengerUpdates() {
   showPassengerPage();
   const updates = await api("/api/traffic", { headers: authHeaders() });
+  populateRouteSelect(updates);
   renderTraffic(updates);
 }
 
@@ -231,7 +276,12 @@ function initSocket() {
       api("/api/analytics", { headers: authHeaders() }).then(renderAnalytics).catch(() => {});
     }
     if (!els.passengerPage.classList.contains("d-none")) {
-      api("/api/traffic", { headers: authHeaders() }).then(renderTraffic).catch(() => {});
+      api("/api/traffic", { headers: authHeaders() })
+        .then((updates) => {
+          populateRouteSelect(updates);
+          renderTraffic(updates);
+        })
+        .catch(() => {});
     }
   });
 }
@@ -275,6 +325,14 @@ els.vehicleList.addEventListener("click", (event) => {
 
 els.logoutButton.addEventListener("click", clearSession);
 els.homeButton.addEventListener("click", showHome);
+els.routeSelect.addEventListener("change", () => {
+  state.selectedRouteId = els.routeSelect.value;
+  renderTraffic(state.trafficUpdates);
+});
+els.routeSearch.addEventListener("input", () => {
+  state.routeSearch = els.routeSearch.value;
+  renderTraffic(state.trafficUpdates);
+});
 
 initSocket();
 if (state.token && state.user) {

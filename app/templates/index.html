@@ -143,6 +143,17 @@
         <div class="passenger-header">
           <p class="section-kicker">Passenger updates</p>
           <h1 class="h3">Traffic jam and busy route alerts</h1>
+          <p class="text-secondary mb-0">Choose any route, even if you are somewhere else, and see its live condition before travelling.</p>
+        </div>
+        <div class="route-lookup border">
+          <label class="form-label" for="routeSearch">Search or select a route</label>
+          <div class="route-controls">
+            <input class="form-control" id="routeSearch" placeholder="Example: Ngong Road">
+            <select class="form-select" id="routeSelect">
+              <option value="">All routes</option>
+            </select>
+          </div>
+          <div class="selected-route mt-3 d-none" id="selectedRouteSummary"></div>
         </div>
         <div id="trafficList" class="traffic-grid"></div>
       </div>

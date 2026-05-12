@@ -247,6 +247,26 @@ body {
   margin-bottom: 18px;
 }
 
+.route-lookup {
+  background: #fff;
+  border-radius: 4px;
+  margin-bottom: 18px;
+  padding: 16px;
+}
+
+.route-controls {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 260px;
+}
+
+.selected-route {
+  background: #eef6ff;
+  border-left: 6px solid #174ea6;
+  border-radius: 4px;
+  padding: 12px 14px;
+}
+
 .section-kicker {
   color: #174ea6;
   font-size: 0.78rem;
@@ -355,7 +375,8 @@ body {
   .login-grid,
   .traffic-grid,
   .reference-links,
-  .footer-grid {
+  .footer-grid,
+  .route-controls {
     grid-template-columns: 1fr;
   }
 }

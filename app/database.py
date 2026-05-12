@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS location_history (
 
 CREATE TABLE IF NOT EXISTS traffic_updates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    route_id INTEGER NOT NULL,
+    route_id INTEGER NOT NULL UNIQUE,
     severity TEXT NOT NULL,
     message TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -154,6 +154,18 @@ def init_db(app):
 
 
 def seed_db(db):
+    db.execute(
+        """
+        DELETE FROM traffic_updates
+        WHERE id NOT IN (
+            SELECT MIN(id)
+            FROM traffic_updates
+            GROUP BY route_id
+        )
+        """
+    )
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_traffic_updates_route ON traffic_updates(route_id)")
+
     for username, password, role in USERS:
         db.execute(
             """
@@ -185,8 +197,12 @@ def seed_db(db):
     for route_id, severity, message in TRAFFIC_UPDATES:
         db.execute(
             """
-            INSERT OR IGNORE INTO traffic_updates (route_id, severity, message, updated_at)
+            INSERT INTO traffic_updates (route_id, severity, message, updated_at)
             VALUES (?, ?, ?, ?)
+            ON CONFLICT(route_id) DO UPDATE SET
+                severity = excluded.severity,
+                message = excluded.message,
+                updated_at = excluded.updated_at
             """,
             (route_id, severity, message, utc_now()),
         )

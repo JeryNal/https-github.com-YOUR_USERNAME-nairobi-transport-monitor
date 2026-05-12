@@ -68,6 +68,22 @@ def test_passenger_can_read_traffic_updates(tmp_path):
     assert len(response.get_json()) == 3
 
 
+def test_passenger_can_filter_traffic_by_route(tmp_path):
+    app = make_app(tmp_path)
+    with app.test_client() as client:
+        token = login(client, "passenger", "passenger123")
+        response = client.get(
+            "/api/traffic?q=Ngong",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data) == 1
+    assert data[0]["name"] == "Ngong Road Route"
+    assert data[0]["severity"] in {"Busy", "Moderate", "Clear"}
+
+
 def test_health_endpoint(tmp_path):
     app = make_app(tmp_path)
     with app.test_client() as client:
