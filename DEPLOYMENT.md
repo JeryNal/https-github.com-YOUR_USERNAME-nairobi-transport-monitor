@@ -15,6 +15,14 @@ Start Command: gunicorn --worker-class gthread --threads 100 --workers 1 --bind 
 Health Check Path: /health
 ```
 
+If Render logs show:
+
+```text
+Running 'gunicorn app:app'
+```
+
+edit the service settings and replace the Start Command with the `wsgi:app` command above. The project does not use `app:app` as its production entrypoint.
+
 4. Add environment variables:
 
 ```text
