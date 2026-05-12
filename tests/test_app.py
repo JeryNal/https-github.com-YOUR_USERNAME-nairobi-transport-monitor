@@ -12,8 +12,8 @@ def make_app(tmp_path):
     )
 
 
-def login(client):
-    response = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+def login(client, username="admin", password="admin123"):
+    response = client.post("/api/auth/login", json={"username": username, "password": password})
     assert response.status_code == 200
     return response.get_json()["access_token"]
 
@@ -32,6 +32,15 @@ def test_protected_routes_require_jwt(tmp_path):
     assert response.status_code == 401
 
 
+def test_passenger_cannot_monitor_vehicles(tmp_path):
+    app = make_app(tmp_path)
+    with app.test_client() as client:
+        token = login(client, "passenger", "passenger123")
+        response = client.get("/api/vehicles", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 403
+
+
 def test_dashboard_api_returns_seeded_data(tmp_path):
     app = make_app(tmp_path)
     with app.test_client() as client:
@@ -47,6 +56,16 @@ def test_dashboard_api_returns_seeded_data(tmp_path):
     assert len(vehicles.get_json()) == 6
     assert len(routes.get_json()) == 3
     assert analytics.get_json()["summary"]["total_vehicles"] == 6
+
+
+def test_passenger_can_read_traffic_updates(tmp_path):
+    app = make_app(tmp_path)
+    with app.test_client() as client:
+        token = login(client, "passenger", "passenger123")
+        response = client.get("/api/traffic", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert len(response.get_json()) == 3
 
 
 def test_health_endpoint(tmp_path):

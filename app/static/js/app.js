@@ -1,5 +1,8 @@
+const STAFF_ROLES = new Set(["admin", "manager", "driver"]);
+
 const state = {
   token: localStorage.getItem("transport_token"),
+  user: JSON.parse(localStorage.getItem("transport_user") || "null"),
   map: null,
   markers: new Map(),
   routeLayers: [],
@@ -7,14 +10,23 @@ const state = {
 };
 
 const els = {
-  loginPanel: document.querySelector("#loginPanel"),
+  homePage: document.querySelector("#homePage"),
   dashboard: document.querySelector("#dashboard"),
-  loginForm: document.querySelector("#loginForm"),
-  loginError: document.querySelector("#loginError"),
-  username: document.querySelector("#username"),
-  password: document.querySelector("#password"),
+  passengerPage: document.querySelector("#passengerPage"),
+  staffLoginForm: document.querySelector("#staffLoginForm"),
+  passengerLoginForm: document.querySelector("#passengerLoginForm"),
+  staffLoginError: document.querySelector("#staffLoginError"),
+  passengerLoginError: document.querySelector("#passengerLoginError"),
+  staffUsername: document.querySelector("#staffUsername"),
+  staffPassword: document.querySelector("#staffPassword"),
+  passengerUsername: document.querySelector("#passengerUsername"),
+  passengerPassword: document.querySelector("#passengerPassword"),
   connectionStatus: document.querySelector("#connectionStatus"),
+  roleBadge: document.querySelector("#roleBadge"),
+  logoutButton: document.querySelector("#logoutButton"),
+  homeButton: document.querySelector("#homeButton"),
   vehicleList: document.querySelector("#vehicleList"),
+  trafficList: document.querySelector("#trafficList"),
   totalVehicles: document.querySelector("#totalVehicles"),
   activeVehicles: document.querySelector("#activeVehicles"),
   avgSpeed: document.querySelector("#avgSpeed"),
@@ -40,12 +52,47 @@ async function api(path, options = {}) {
   return payload;
 }
 
+function setSession(payload) {
+  state.token = payload.access_token;
+  state.user = payload.user;
+  localStorage.setItem("transport_token", state.token);
+  localStorage.setItem("transport_user", JSON.stringify(state.user));
+  els.roleBadge.textContent = state.user.role;
+  els.logoutButton.classList.remove("d-none");
+}
+
+function clearSession() {
+  state.token = null;
+  state.user = null;
+  localStorage.removeItem("transport_token");
+  localStorage.removeItem("transport_user");
+  els.roleBadge.textContent = "Guest";
+  els.logoutButton.classList.add("d-none");
+  showHome();
+}
+
+function hideScreens() {
+  els.homePage.classList.add("d-none");
+  els.dashboard.classList.add("d-none");
+  els.passengerPage.classList.add("d-none");
+}
+
+function showHome() {
+  hideScreens();
+  els.homePage.classList.remove("d-none");
+}
+
 function showDashboard() {
-  els.loginPanel.classList.add("d-none");
+  hideScreens();
   els.dashboard.classList.remove("d-none");
   if (!state.map) {
     initMap();
   }
+}
+
+function showPassengerPage() {
+  hideScreens();
+  els.passengerPage.classList.remove("d-none");
 }
 
 function initMap() {
@@ -101,7 +148,7 @@ function renderVehicles(vehicles) {
             <strong>${vehicle.plate_number}</strong>
             <span>${vehicle.speed_kph} kph</span>
           </div>
-          <div class="vehicle-meta">${vehicle.route_name} · ${vehicle.occupancy} passengers</div>
+          <div class="vehicle-meta">${vehicle.route_name} - ${vehicle.occupancy} passengers</div>
         </div>
       `
     )
@@ -113,6 +160,31 @@ function renderAnalytics(data) {
   els.activeVehicles.textContent = data.summary.active_vehicles ?? 0;
   els.avgSpeed.textContent = `${data.summary.average_speed ?? 0}`;
   els.avgOccupancy.textContent = `${data.summary.average_occupancy ?? 0}`;
+}
+
+function severityClass(severity) {
+  return (severity || "clear").toLowerCase();
+}
+
+function renderTraffic(updates) {
+  els.trafficList.innerHTML = updates
+    .map((update) => {
+      const level = severityClass(update.severity);
+      return `
+        <article class="traffic-card ${level}">
+          <span class="traffic-severity ${level}">${update.severity || "Clear"}</span>
+          <h2 class="h5 mt-3">${update.name}</h2>
+          <p class="text-secondary mb-2">${update.origin} to ${update.destination}</p>
+          <p>${update.message}</p>
+          <div class="small text-secondary">
+            Avg speed: ${update.average_speed ?? 0} kph<br>
+            Avg load: ${update.average_occupancy ?? 0} passengers<br>
+            Vehicles active: ${update.vehicles ?? 0}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
 }
 
 async function loadDashboard() {
@@ -127,6 +199,19 @@ async function loadDashboard() {
   renderAnalytics(analytics);
 }
 
+async function loadPassengerUpdates() {
+  showPassengerPage();
+  const updates = await api("/api/traffic", { headers: authHeaders() });
+  renderTraffic(updates);
+}
+
+async function login(username, password) {
+  return api("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+}
+
 function initSocket() {
   const socket = io();
   socket.on("connect", () => {
@@ -138,30 +223,43 @@ function initSocket() {
     els.connectionStatus.className = "badge text-bg-secondary";
   });
   socket.on("vehicle_updates", (vehicles) => {
-    if (!state.token || els.dashboard.classList.contains("d-none")) {
+    if (!state.token || !state.user) {
       return;
     }
-    renderVehicles(vehicles);
-    api("/api/analytics", { headers: authHeaders() }).then(renderAnalytics).catch(() => {});
+    if (!els.dashboard.classList.contains("d-none") && STAFF_ROLES.has(state.user.role)) {
+      renderVehicles(vehicles);
+      api("/api/analytics", { headers: authHeaders() }).then(renderAnalytics).catch(() => {});
+    }
+    if (!els.passengerPage.classList.contains("d-none")) {
+      api("/api/traffic", { headers: authHeaders() }).then(renderTraffic).catch(() => {});
+    }
   });
 }
 
-els.loginForm.addEventListener("submit", async (event) => {
+els.staffLoginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  els.loginError.textContent = "";
+  els.staffLoginError.textContent = "";
   try {
-    const payload = await api("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({
-        username: els.username.value,
-        password: els.password.value,
-      }),
-    });
-    state.token = payload.access_token;
-    localStorage.setItem("transport_token", state.token);
+    const payload = await login(els.staffUsername.value, els.staffPassword.value);
+    if (!STAFF_ROLES.has(payload.user.role)) {
+      throw new Error("Only admins, managers, and drivers can open the monitor");
+    }
+    setSession(payload);
     await loadDashboard();
   } catch (error) {
-    els.loginError.textContent = error.message;
+    els.staffLoginError.textContent = error.message;
+  }
+});
+
+els.passengerLoginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  els.passengerLoginError.textContent = "";
+  try {
+    const payload = await login(els.passengerUsername.value, els.passengerPassword.value);
+    setSession(payload);
+    await loadPassengerUpdates();
+  } catch (error) {
+    els.passengerLoginError.textContent = error.message;
   }
 });
 
@@ -175,12 +273,16 @@ els.vehicleList.addEventListener("click", (event) => {
   }
 });
 
+els.logoutButton.addEventListener("click", clearSession);
+els.homeButton.addEventListener("click", showHome);
+
 initSocket();
-if (state.token) {
-  loadDashboard().catch(() => {
-    localStorage.removeItem("transport_token");
-    state.token = null;
-    els.dashboard.classList.add("d-none");
-    els.loginPanel.classList.remove("d-none");
-  });
+if (state.token && state.user) {
+  els.roleBadge.textContent = state.user.role;
+  els.logoutButton.classList.remove("d-none");
+  if (STAFF_ROLES.has(state.user.role)) {
+    loadDashboard().catch(clearSession);
+  } else {
+    loadPassengerUpdates().catch(clearSession);
+  }
 }

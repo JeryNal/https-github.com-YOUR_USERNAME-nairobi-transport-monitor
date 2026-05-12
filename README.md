@@ -22,8 +22,18 @@ Open `http://127.0.0.1:5000`.
 
 Default login:
 
-- Username: `admin`
-- Password: `admin123`
+- Staff monitor:
+  - Username: `admin`
+  - Password: `admin123`
+- Manager monitor:
+  - Username: `manager`
+  - Password: `manager123`
+- Driver monitor:
+  - Username: `driver`
+  - Password: `driver123`
+- Passenger updates:
+  - Username: `passenger`
+  - Password: `passenger123`
 
 ## Tests
 

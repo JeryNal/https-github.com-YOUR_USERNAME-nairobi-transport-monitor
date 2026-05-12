@@ -2,7 +2,7 @@ import json
 
 from flask import Blueprint, jsonify, request
 
-from app.auth import create_access_token, jwt_required, verify_credentials
+from app.auth import create_access_token, jwt_required, role_required, verify_credentials
 from app.database import get_db
 
 
@@ -45,14 +45,14 @@ def login():
 
 
 @api_bp.get("/routes")
-@jwt_required
+@role_required("admin", "manager", "driver", "passenger")
 def get_routes():
     rows = get_db().execute("SELECT * FROM routes ORDER BY name").fetchall()
     return jsonify([route_payload(row) for row in rows])
 
 
 @api_bp.get("/vehicles")
-@jwt_required
+@role_required("admin", "manager", "driver")
 def get_vehicles():
     rows = get_db().execute(
         """
@@ -66,7 +66,7 @@ def get_vehicles():
 
 
 @api_bp.get("/vehicles/<int:vehicle_id>")
-@jwt_required
+@role_required("admin", "manager", "driver")
 def get_vehicle(vehicle_id):
     row = get_db().execute(
         """
@@ -83,7 +83,7 @@ def get_vehicle(vehicle_id):
 
 
 @api_bp.get("/analytics")
-@jwt_required
+@role_required("admin", "manager", "driver")
 def get_analytics():
     db = get_db()
     summary = db.execute(
@@ -106,3 +106,36 @@ def get_analytics():
         """
     ).fetchall()
     return jsonify({"summary": row_to_dict(summary), "routes": [row_to_dict(row) for row in by_route]})
+
+
+@api_bp.get("/traffic")
+@role_required("admin", "manager", "driver", "passenger")
+def get_traffic_updates():
+    rows = get_db().execute(
+        """
+        SELECT
+            routes.id AS route_id,
+            routes.name,
+            routes.origin,
+            routes.destination,
+            routes.color,
+            traffic_updates.severity,
+            traffic_updates.message,
+            traffic_updates.updated_at,
+            ROUND(AVG(vehicles.speed_kph), 1) AS average_speed,
+            ROUND(AVG(vehicles.occupancy), 1) AS average_occupancy,
+            COUNT(vehicles.id) AS vehicles
+        FROM routes
+        LEFT JOIN vehicles ON vehicles.route_id = routes.id
+        LEFT JOIN traffic_updates ON traffic_updates.route_id = routes.id
+        GROUP BY routes.id
+        ORDER BY
+            CASE traffic_updates.severity
+                WHEN 'Busy' THEN 1
+                WHEN 'Moderate' THEN 2
+                ELSE 3
+            END,
+            routes.name
+        """
+    ).fetchall()
+    return jsonify([row_to_dict(row) for row in rows])

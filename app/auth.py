@@ -48,3 +48,18 @@ def jwt_required(view):
         return view(*args, **kwargs)
 
     return wrapped
+
+
+def role_required(*allowed_roles):
+    def decorator(view):
+        @wraps(view)
+        @jwt_required
+        def wrapped(*args, **kwargs):
+            role = request.jwt_payload.get("role")
+            if role not in allowed_roles:
+                return jsonify({"error": "You are not allowed to access this area"}), 403
+            return view(*args, **kwargs)
+
+        return wrapped
+
+    return decorator

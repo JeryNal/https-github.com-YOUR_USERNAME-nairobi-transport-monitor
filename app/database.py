@@ -48,6 +48,15 @@ CREATE TABLE IF NOT EXISTS location_history (
     recorded_at TEXT NOT NULL,
     FOREIGN KEY(vehicle_id) REFERENCES vehicles(id)
 );
+
+CREATE TABLE IF NOT EXISTS traffic_updates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    route_id INTEGER NOT NULL,
+    severity TEXT NOT NULL,
+    message TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(route_id) REFERENCES routes(id)
+);
 """
 
 
@@ -104,6 +113,21 @@ VEHICLES = [
 ]
 
 
+USERS = [
+    ("admin", "admin123", "admin"),
+    ("manager", "manager123", "manager"),
+    ("driver", "driver123", "driver"),
+    ("passenger", "passenger123", "passenger"),
+]
+
+
+TRAFFIC_UPDATES = [
+    (1, "Moderate", "Ngong Road has slow movement near Adams Arcade. Expect short delays."),
+    (2, "Busy", "Thika Road is busy toward Ruiru. Use extra travel time during peak hours."),
+    (3, "Clear", "Mombasa Road is moving steadily with normal passenger flow."),
+]
+
+
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -130,13 +154,14 @@ def init_db(app):
 
 
 def seed_db(db):
-    db.execute(
-        """
-        INSERT OR IGNORE INTO users (username, password_hash, role, created_at)
-        VALUES (?, ?, ?, ?)
-        """,
-        ("admin", generate_password_hash("admin123"), "admin", utc_now()),
-    )
+    for username, password, role in USERS:
+        db.execute(
+            """
+            INSERT OR IGNORE INTO users (username, password_hash, role, created_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (username, generate_password_hash(password), role, utc_now()),
+        )
 
     for name, origin, destination, color, path in ROUTES:
         db.execute(
@@ -155,4 +180,13 @@ def seed_db(db):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (plate, sacco, route_id, lat, lon, 35, 20, utc_now()),
+        )
+
+    for route_id, severity, message in TRAFFIC_UPDATES:
+        db.execute(
+            """
+            INSERT OR IGNORE INTO traffic_updates (route_id, severity, message, updated_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (route_id, severity, message, utc_now()),
         )

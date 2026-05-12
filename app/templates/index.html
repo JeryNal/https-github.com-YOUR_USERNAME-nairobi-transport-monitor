@@ -11,55 +11,96 @@
 <body>
   <nav class="navbar navbar-expand-lg bg-white border-bottom">
     <div class="container-fluid">
-      <span class="navbar-brand fw-semibold">Nairobi Transport Monitor</span>
-      <span class="badge text-bg-success" id="connectionStatus">Connecting</span>
+      <button class="brand-button" id="homeButton" type="button">Nairobi Transport Monitor</button>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge text-bg-secondary" id="roleBadge">Guest</span>
+        <span class="badge text-bg-success" id="connectionStatus">Connecting</span>
+        <button class="btn btn-sm btn-outline-secondary d-none" id="logoutButton" type="button">Logout</button>
+      </div>
     </div>
   </nav>
 
-  <main class="container-fluid py-3">
-    <section id="loginPanel" class="login-shell">
-      <div class="login-panel border">
-        <h1 class="h4 mb-3">Operator Login</h1>
-        <form id="loginForm">
-          <label class="form-label" for="username">Username</label>
-          <input class="form-control mb-3" id="username" value="admin" autocomplete="username">
-          <label class="form-label" for="password">Password</label>
-          <input class="form-control mb-3" id="password" type="password" value="admin123" autocomplete="current-password">
-          <button class="btn btn-primary w-100" type="submit">Sign in</button>
-          <p class="text-danger small mt-3 mb-0" id="loginError"></p>
-        </form>
+  <main>
+    <section id="homePage" class="home-page">
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <p class="section-kicker">Live Nairobi matatu routes</p>
+          <h1>Track movement, route pressure, and passenger updates from one place.</h1>
+          <div class="login-grid">
+            <div class="login-card border">
+              <h2 class="h5">Staff Access</h2>
+              <p class="small text-secondary">Admins, managers, and drivers monitor vehicles.</p>
+              <form id="staffLoginForm">
+                <label class="form-label" for="staffUsername">Username</label>
+                <input class="form-control mb-2" id="staffUsername" value="admin" autocomplete="username">
+                <label class="form-label" for="staffPassword">Password</label>
+                <input class="form-control mb-3" id="staffPassword" type="password" value="admin123" autocomplete="current-password">
+                <button class="btn btn-primary w-100" type="submit">Open Monitor</button>
+                <p class="text-danger small mt-2 mb-0" id="staffLoginError"></p>
+              </form>
+            </div>
+            <div class="login-card border">
+              <h2 class="h5">Passenger Access</h2>
+              <p class="small text-secondary">Passengers check jams and busy route alerts.</p>
+              <form id="passengerLoginForm">
+                <label class="form-label" for="passengerUsername">Username</label>
+                <input class="form-control mb-2" id="passengerUsername" value="passenger" autocomplete="username">
+                <label class="form-label" for="passengerPassword">Password</label>
+                <input class="form-control mb-3" id="passengerPassword" type="password" value="passenger123" autocomplete="current-password">
+                <button class="btn btn-dark w-100" type="submit">Check Updates</button>
+                <p class="text-danger small mt-2 mb-0" id="passengerLoginError"></p>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="hero-images">
+          <img src="{{ url_for('static', filename='images/nairobi-stage.svg') }}" alt="Busy Nairobi matatu stage">
+          <img src="{{ url_for('static', filename='images/matatu-bus.svg') }}" alt="Kenyan matatu bus">
+        </div>
       </div>
     </section>
 
     <section id="dashboard" class="dashboard d-none">
-      <div class="row g-3">
-        <div class="col-12 col-xl-9">
-          <div id="map"></div>
-        </div>
-        <div class="col-12 col-xl-3">
-          <div class="metrics-grid mb-3">
-            <div class="metric border">
-              <span>Total</span>
-              <strong id="totalVehicles">0</strong>
+      <div class="container-fluid py-3">
+        <div class="row g-3">
+          <div class="col-12 col-xl-9">
+            <div id="map"></div>
+          </div>
+          <div class="col-12 col-xl-3">
+            <div class="metrics-grid mb-3">
+              <div class="metric border">
+                <span>Total</span>
+                <strong id="totalVehicles">0</strong>
+              </div>
+              <div class="metric border">
+                <span>Active</span>
+                <strong id="activeVehicles">0</strong>
+              </div>
+              <div class="metric border">
+                <span>Avg Speed</span>
+                <strong id="avgSpeed">0</strong>
+              </div>
+              <div class="metric border">
+                <span>Avg Load</span>
+                <strong id="avgOccupancy">0</strong>
+              </div>
             </div>
-            <div class="metric border">
-              <span>Active</span>
-              <strong id="activeVehicles">0</strong>
-            </div>
-            <div class="metric border">
-              <span>Avg Speed</span>
-              <strong id="avgSpeed">0</strong>
-            </div>
-            <div class="metric border">
-              <span>Avg Load</span>
-              <strong id="avgOccupancy">0</strong>
+            <div class="vehicle-list border">
+              <div class="list-header">Vehicles</div>
+              <div id="vehicleList"></div>
             </div>
           </div>
-          <div class="vehicle-list border">
-            <div class="list-header">Vehicles</div>
-            <div id="vehicleList"></div>
-          </div>
         </div>
+      </div>
+    </section>
+
+    <section id="passengerPage" class="passenger-page d-none">
+      <div class="container py-4">
+        <div class="passenger-header">
+          <p class="section-kicker">Passenger updates</p>
+          <h1 class="h3">Traffic jam and busy route alerts</h1>
+        </div>
+        <div id="trafficList" class="traffic-grid"></div>
       </div>
     </section>
   </main>
