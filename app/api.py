@@ -1,4 +1,10 @@
+import html
 import json
+import re
+import time
+from urllib.error import URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 from flask import Blueprint, jsonify, request
 
@@ -7,6 +13,10 @@ from app.database import get_db
 
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
+
+COMMONS_API_URL = "https://commons.wikimedia.org/w/api.php"
+MATATU_IMAGE_CACHE_TTL_SECONDS = 60 * 60 * 6
+_matatu_image_cache = {"expires_at": 0, "images": []}
 
 
 def row_to_dict(row):
@@ -26,6 +36,64 @@ def vehicle_payload(row):
     return vehicle
 
 
+def traffic_action(severity):
+    if severity == "Busy":
+        return "Dispatch support, warn passengers, and monitor this corridor closely."
+    if severity == "Moderate":
+        return "Keep this route on watch and advise passengers to allow extra travel time."
+    return "No immediate action needed. Keep normal monitoring active."
+
+
+def plain_text(value):
+    if not value:
+        return ""
+    return html.unescape(re.sub(r"<[^>]*>", "", str(value))).strip()
+
+
+def fetch_matatu_images_from_commons(limit=6):
+    params = urlencode(
+        {
+            "action": "query",
+            "format": "json",
+            "generator": "search",
+            "gsrsearch": "Nairobi matatu road",
+            "gsrnamespace": 6,
+            "gsrlimit": limit,
+            "prop": "imageinfo",
+            "iiprop": "url|extmetadata",
+            "iiurlwidth": 900,
+            "origin": "*",
+        }
+    )
+    request = Request(
+        f"{COMMONS_API_URL}?{params}",
+        headers={"User-Agent": "NairobiTransportMonitor/1.0"},
+    )
+    with urlopen(request, timeout=6) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    pages = payload.get("query", {}).get("pages", {})
+    images = []
+    for page in pages.values():
+        info = (page.get("imageinfo") or [{}])[0]
+        image_url = info.get("thumburl") or info.get("url")
+        source_url = info.get("descriptionurl")
+        if not image_url or not image_url.startswith("https://"):
+            continue
+        metadata = info.get("extmetadata") or {}
+        images.append(
+            {
+                "title": page.get("title", "Nairobi matatu on the road").replace("File:", ""),
+                "image_url": image_url,
+                "source_url": source_url if source_url and source_url.startswith("https://") else "",
+                "credit": plain_text((metadata.get("Artist") or {}).get("value")),
+                "license": plain_text((metadata.get("LicenseShortName") or {}).get("value")),
+            }
+        )
+
+    return images[:limit]
+
+
 @api_bp.post("/auth/login")
 def login():
     data = request.get_json(silent=True) or {}
@@ -42,6 +110,28 @@ def login():
             "user": {"id": user["id"], "username": user["username"], "role": user["role"]},
         }
     )
+
+
+@api_bp.get("/matatu-images")
+def get_matatu_images():
+    limit = max(1, min(request.args.get("limit", default=6, type=int), 9))
+    now = time.time()
+    if _matatu_image_cache["expires_at"] > now and _matatu_image_cache["images"]:
+        return jsonify(_matatu_image_cache["images"][:limit])
+
+    try:
+        images = fetch_matatu_images_from_commons(limit)
+    except (OSError, URLError, TimeoutError, ValueError, json.JSONDecodeError):
+        return jsonify(_matatu_image_cache["images"][:limit])
+
+    if images:
+        _matatu_image_cache.update(
+            {
+                "expires_at": now + MATATU_IMAGE_CACHE_TTL_SECONDS,
+                "images": images,
+            }
+        )
+    return jsonify(images)
 
 
 @api_bp.get("/routes")
@@ -166,7 +256,12 @@ def get_traffic_updates():
             updated_at,
             average_speed,
             average_occupancy,
-            vehicles
+            vehicles,
+            ROUND(
+                (100 - MIN(COALESCE(average_speed, 0), 70) / 70.0 * 100) * 0.55
+                + (MIN(COALESCE(average_occupancy, 0), 33) / 33.0 * 100) * 0.45,
+                1
+            ) AS pressure_score
         FROM route_stats
         ORDER BY
             CASE severity
@@ -178,4 +273,9 @@ def get_traffic_updates():
         """,
         params,
     ).fetchall()
-    return jsonify([row_to_dict(row) for row in rows])
+    payload = []
+    for row in rows:
+        update = row_to_dict(row)
+        update["next_action"] = traffic_action(update["severity"])
+        payload.append(update)
+    return jsonify(payload)

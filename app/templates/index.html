@@ -42,6 +42,13 @@
           <img src="{{ url_for('static', filename='images/nairobi-stage.svg') }}" alt="Busy Nairobi matatu stage">
         </div>
 
+        <section class="guide-section matatu-photo-section">
+          <h2>Matatus on Nairobi Roads</h2>
+          <div class="photo-grid" id="matatuPhotoGrid">
+            <div class="photo-placeholder">Loading road photos...</div>
+          </div>
+        </section>
+
         <section id="gettingAround" class="guide-section">
           <h2>Getting Around Tips</h2>
           <div class="tips-grid">
@@ -132,6 +139,10 @@
             <div class="vehicle-list border">
               <div class="list-header">Vehicles</div>
               <div id="vehicleList"></div>
+            </div>
+            <div class="operations-alerts border mt-3">
+              <div class="list-header">Route Alerts</div>
+              <div id="operationsAlerts"></div>
             </div>
           </div>
         </div>

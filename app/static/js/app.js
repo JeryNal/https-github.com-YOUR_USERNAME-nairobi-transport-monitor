@@ -10,6 +10,8 @@ const state = {
   trafficUpdates: [],
   selectedRouteId: "",
   routeSearch: "",
+  operationsAlerts: [],
+  matatuImages: [],
 };
 
 const els = {
@@ -29,6 +31,8 @@ const els = {
   logoutButton: document.querySelector("#logoutButton"),
   homeButton: document.querySelector("#homeButton"),
   vehicleList: document.querySelector("#vehicleList"),
+  operationsAlerts: document.querySelector("#operationsAlerts"),
+  matatuPhotoGrid: document.querySelector("#matatuPhotoGrid"),
   trafficList: document.querySelector("#trafficList"),
   routeSelect: document.querySelector("#routeSelect"),
   routeSearch: document.querySelector("#routeSearch"),
@@ -111,15 +115,17 @@ function initMap() {
 
 function renderRoutes(routes) {
   state.routeLayers.forEach((layer) => layer.remove());
-  state.routeLayers = routes.map((route) =>
-    L.polyline(route.path, {
+  state.routeLayers = routes.map((route) => {
+    const layer = L.polyline(route.path, {
       color: route.color,
       weight: 5,
       opacity: 0.75,
     })
       .bindPopup(`${route.name}: ${route.origin} to ${route.destination}`)
-      .addTo(state.map)
-  );
+      .addTo(state.map);
+    layer.routeId = route.id;
+    return layer;
+  });
 }
 
 function renderVehicles(vehicles) {
@@ -172,6 +178,89 @@ function severityClass(severity) {
   return (severity || "clear").toLowerCase();
 }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => {
+    const replacements = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return replacements[character];
+  });
+}
+
+function renderMatatuImages(images) {
+  state.matatuImages = images;
+  if (!images.length) {
+    els.matatuPhotoGrid.innerHTML = `
+      <div class="photo-placeholder">
+        Road photos are unavailable right now. Please try again later.
+      </div>
+    `;
+    return;
+  }
+
+  els.matatuPhotoGrid.innerHTML = images
+    .map(
+      (image) => {
+        const title = escapeHtml(image.title || "Nairobi matatu on the road");
+        const creditLine = [image.credit, image.license].filter(Boolean).map(escapeHtml).join(" | ");
+        const sourceUrl = escapeHtml(image.source_url || "");
+        return `
+        <article class="photo-card">
+          <img src="${escapeHtml(image.image_url)}" alt="${title}" loading="lazy">
+          <div class="photo-caption">
+            <strong>${title}</strong>
+            ${creditLine ? `<span>${creditLine}</span>` : ""}
+            ${sourceUrl ? `<a href="${sourceUrl}" target="_blank" rel="noopener">Source</a>` : ""}
+          </div>
+        </article>
+      `;
+      }
+    )
+    .join("");
+}
+
+async function loadMatatuImages() {
+  try {
+    const images = await api("/api/matatu-images?limit=6");
+    renderMatatuImages(images);
+  } catch (error) {
+    renderMatatuImages([]);
+  }
+}
+
+function renderOperationsAlerts(updates) {
+  const alerts = updates.filter((update) => severityClass(update.severity) !== "clear");
+  state.operationsAlerts = alerts;
+  if (!alerts.length) {
+    els.operationsAlerts.innerHTML = `
+      <div class="alert-item">
+        <strong>No route alerts</strong>
+        <div class="vehicle-meta">All monitored routes are operating normally.</div>
+      </div>
+    `;
+    return;
+  }
+
+  els.operationsAlerts.innerHTML = alerts
+    .map((update) => {
+      const level = severityClass(update.severity);
+      return `
+        <button class="alert-item ${level}" type="button" data-route-id="${update.route_id}">
+          <span class="traffic-severity ${level}">${update.severity || "Clear"}</span>
+          <strong>${update.name}</strong>
+          <span class="vehicle-meta">${update.origin} to ${update.destination}</span>
+          <span class="pressure-line">Pressure score: ${update.pressure_score ?? 0}</span>
+          <span class="vehicle-meta">${update.next_action}</span>
+        </button>
+      `;
+    })
+    .join("");
+}
+
 function renderTraffic(updates) {
   state.trafficUpdates = updates;
   const filteredUpdates = filterTrafficUpdates(updates);
@@ -186,9 +275,11 @@ function renderTraffic(updates) {
           <p class="text-secondary mb-2">${update.origin} to ${update.destination}</p>
           <p>${update.message}</p>
           ${update.saved_message ? `<p class="small text-secondary">Route note: ${update.saved_message}</p>` : ""}
+          <p class="small action-line"><strong>Suggested action:</strong> ${update.next_action}</p>
           <div class="small text-secondary">
             Avg speed: ${update.average_speed ?? 0} kph<br>
             Avg load: ${update.average_occupancy ?? 0} passengers<br>
+            Pressure score: ${update.pressure_score ?? 0}<br>
             Vehicles active: ${update.vehicles ?? 0}
           </div>
         </article>
@@ -233,14 +324,16 @@ function renderSelectedRouteSummary(updates) {
 
 async function loadDashboard() {
   showDashboard();
-  const [routes, vehicles, analytics] = await Promise.all([
+  const [routes, vehicles, analytics, traffic] = await Promise.all([
     api("/api/routes", { headers: authHeaders() }),
     api("/api/vehicles", { headers: authHeaders() }),
     api("/api/analytics", { headers: authHeaders() }),
+    api("/api/traffic", { headers: authHeaders() }),
   ]);
   renderRoutes(routes);
   renderVehicles(vehicles);
   renderAnalytics(analytics);
+  renderOperationsAlerts(traffic);
 }
 
 async function loadPassengerUpdates() {
@@ -274,6 +367,7 @@ function initSocket() {
     if (!els.dashboard.classList.contains("d-none") && STAFF_ROLES.has(state.user.role)) {
       renderVehicles(vehicles);
       api("/api/analytics", { headers: authHeaders() }).then(renderAnalytics).catch(() => {});
+      api("/api/traffic", { headers: authHeaders() }).then(renderOperationsAlerts).catch(() => {});
     }
     if (!els.passengerPage.classList.contains("d-none")) {
       api("/api/traffic", { headers: authHeaders() })
@@ -323,6 +417,16 @@ els.vehicleList.addEventListener("click", (event) => {
   }
 });
 
+els.operationsAlerts.addEventListener("click", (event) => {
+  const item = event.target.closest(".alert-item");
+  if (!item || !state.map) return;
+  const routeLayer = state.routeLayers.find((layer) => String(layer.routeId) === item.dataset.routeId);
+  if (routeLayer) {
+    state.map.fitBounds(routeLayer.getBounds(), { padding: [28, 28] });
+    routeLayer.openPopup();
+  }
+});
+
 els.logoutButton.addEventListener("click", clearSession);
 els.homeButton.addEventListener("click", showHome);
 els.routeSelect.addEventListener("change", () => {
@@ -335,6 +439,7 @@ els.routeSearch.addEventListener("input", () => {
 });
 
 initSocket();
+loadMatatuImages();
 if (state.token && state.user) {
   els.roleBadge.textContent = state.user.role;
   els.logoutButton.classList.remove("d-none");

@@ -1,4 +1,5 @@
 from app import create_app
+from app import api as api_module
 
 
 def make_app(tmp_path):
@@ -65,7 +66,10 @@ def test_passenger_can_read_traffic_updates(tmp_path):
         response = client.get("/api/traffic", headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 200
-    assert len(response.get_json()) == 3
+    data = response.get_json()
+    assert len(data) == 3
+    assert {"next_action", "pressure_score"}.issubset(data[0])
+    assert isinstance(data[0]["pressure_score"], float)
 
 
 def test_passenger_can_filter_traffic_by_route(tmp_path):
@@ -82,6 +86,39 @@ def test_passenger_can_filter_traffic_by_route(tmp_path):
     assert len(data) == 1
     assert data[0]["name"] == "Ngong Road Route"
     assert data[0]["severity"] in {"Busy", "Moderate", "Clear"}
+
+
+def test_matatu_images_endpoint_returns_public_image_data(tmp_path, monkeypatch):
+    app = make_app(tmp_path)
+    api_module._matatu_image_cache.update({"expires_at": 0, "images": []})
+
+    def fake_fetch(limit=6):
+        return [
+            {
+                "title": "Nairobi matatu on road",
+                "image_url": "https://example.com/matatu.jpg",
+                "source_url": "https://example.com/source",
+                "credit": "Example photographer",
+                "license": "CC BY-SA",
+            }
+        ][:limit]
+
+    monkeypatch.setattr(api_module, "fetch_matatu_images_from_commons", fake_fetch)
+
+    with app.test_client() as client:
+        response = client.get("/api/matatu-images?limit=1")
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data == [
+        {
+            "title": "Nairobi matatu on road",
+            "image_url": "https://example.com/matatu.jpg",
+            "source_url": "https://example.com/source",
+            "credit": "Example photographer",
+            "license": "CC BY-SA",
+        }
+    ]
 
 
 def test_health_endpoint(tmp_path):
