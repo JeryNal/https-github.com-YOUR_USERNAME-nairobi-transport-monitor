@@ -8,17 +8,25 @@ variables:
 test:
   stage: test
   image: python:3.12
+
   before_script:
     - python -m pip install --upgrade pip
     - pip install -r requirements.txt
     - pip install pytest
+
   script:
-    - pytest
+    - python -m pytest -vv
 
 docker-build:
   stage: build
   image: docker:24
+
   services:
     - docker:24-dind
+
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+
   script:
     - docker build -t nairobi-transport-monitor .
