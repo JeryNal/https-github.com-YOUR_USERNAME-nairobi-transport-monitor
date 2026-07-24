@@ -1,21 +1,31 @@
 stages:
   - test
+  - security
   - build
 
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-
-test:
-  stage: test
+default:
   image: python:3.12
 
-  before_script:
-    - python -m pip install --upgrade pip
-    - pip install -r requirements.txt
-    - pip install pytest
+before_script:
+  - python -m pip install --upgrade pip
+  - pip install -r requirements.txt
 
+pytest:
+  stage: test
   script:
     - python -m pytest -vv
+
+bandit:
+  stage: security
+  script:
+    - pip install bandit
+    - bandit -r app
+
+pip-audit:
+  stage: security
+  script:
+    - pip install pip-audit
+    - pip-audit
 
 docker-build:
   stage: build
